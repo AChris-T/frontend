@@ -1,0 +1,22 @@
+# Python
+backend/__pycache__/
+backend/**/__pycache__/
+*.pyc
+
+# Secrets
+backend/.env
+frontend/frontend/.env*
+!frontend/frontend/.env.example
+
+# Uploaded media (user-generated, not source)
+backend/uploads/photos/*
+backend/uploads/videos/*
+!backend/uploads/photos/.gitkeep
+!backend/uploads/videos/.gitkeep
+
+# YOLO weights (ultralytics auto-downloads these if missing)
+backend/*.pt
+
+# OS junk
+.DS_Store
+Thumbs.db
