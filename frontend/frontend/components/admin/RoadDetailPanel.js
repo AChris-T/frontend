@@ -10,7 +10,7 @@ export default function RoadDetailPanel({ road, reports, onClose, onSelectReport
   const sev = severityMeta(road.severity);
 
   return (
-    <Card padded={false} className="flex h-[640px] flex-col overflow-hidden">
+    <Card padded={false} className="flex h-[70vh] max-h-160 min-h-100 flex-col overflow-hidden">
       <div className="border-b border-border p-5">
         <div className="mb-2 flex items-start justify-between gap-2">
           <h3 className="text-sm font-bold text-ink">{road.name || 'Unnamed Road'}</h3>

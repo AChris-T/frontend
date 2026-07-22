@@ -1,60 +1,48 @@
 'use client';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Route, Camera, LayoutDashboard, Shield, LogOut, LogIn, UserPlus } from 'lucide-react';
+import { Route, Menu, X } from 'lucide-react';
 import { logoutUser } from '@/lib/api';
-
-const linkStyles = 'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-2 hover:text-ink';
+import NavLinks from './NavLinks';
 
 export default function Navbar({ user }) {
+  const [open, setOpen] = useState(false);
   const router = useRouter();
 
   const handleLogout = async () => {
+    setOpen(false);
     await logoutUser();
     router.push('/');
     router.refresh();
   };
 
   return (
-    <nav className="flex items-center justify-between border-b border-border bg-surface px-6 py-3">
-      <Link href="/" className="flex items-center gap-2 text-lg font-bold text-ink">
-        <Route className="h-5 w-5 text-brand" />
-        UI Road Monitor
-      </Link>
-
-      <div className="flex items-center gap-1">
-        <Link href="/report" className={linkStyles}>
-          <Camera className="h-4 w-4" /> Report Fault
+    <nav className="border-b border-border bg-surface px-4 py-3 sm:px-6">
+      <div className="flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-2 text-lg font-bold text-ink" onClick={() => setOpen(false)}>
+          <Route className="h-5 w-5 text-brand" />
+          UI Road Monitor
         </Link>
 
-        {user ? (
-          <>
-            {user.role === 'admin' && (
-              <Link href="/admin" className={linkStyles}>
-                <Shield className="h-4 w-4" /> Admin
-              </Link>
-            )}
-            <Link href="/dashboard" className={linkStyles}>
-              <LayoutDashboard className="h-4 w-4" /> My Reports
-            </Link>
-            <button onClick={handleLogout} className={linkStyles}>
-              <LogOut className="h-4 w-4" /> Logout
-            </button>
-          </>
-        ) : (
-          <>
-            <Link href="/login" className={linkStyles}>
-              <LogIn className="h-4 w-4" /> Login
-            </Link>
-            <Link
-              href="/register"
-              className="flex items-center gap-1.5 rounded-lg bg-brand px-3 py-2 text-sm font-semibold text-brand-ink transition-opacity hover:opacity-90"
-            >
-              <UserPlus className="h-4 w-4" /> Register
-            </Link>
-          </>
-        )}
+        <div className="hidden items-center gap-1 sm:flex">
+          <NavLinks user={user} onLogout={handleLogout} />
+        </div>
+
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="rounded-lg p-2 text-ink-secondary hover:bg-surface-2 sm:hidden"
+          aria-label="Toggle menu"
+        >
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
       </div>
+
+      {open && (
+        <div className="mt-3 flex flex-col gap-1 border-t border-border pt-3 sm:hidden">
+          <NavLinks user={user} onNavigate={() => setOpen(false)} onLogout={handleLogout} />
+        </div>
+      )}
     </nav>
   );
 }

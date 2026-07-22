@@ -40,8 +40,7 @@ export default function ReportWizardClient({ defaultEmail }) {
       {w.step === 3 && (
         <ScanStep
           preview={w.preview} mediaType={w.mediaType} scanning={w.scanning} aiResult={w.aiResult}
-          faultType={w.faultType} severity={w.severity} description={w.description}
-          onFaultType={w.setFaultType} onSeverity={w.setSeverity} onDescription={w.setDescription}
+          description={w.description} onDescription={w.setDescription}
           onBack={() => w.setStep(2)} onContinue={() => w.setStep(4)}
         />
       )}

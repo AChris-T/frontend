@@ -15,7 +15,7 @@ export default function AdminDashboardClient({ initialStats, initialReports, use
   const d = useAdminDashboard(initialStats, initialReports);
 
   return (
-    <div className="mx-auto max-w-[1400px] p-6">
+    <div className="mx-auto max-w-350 p-4 sm:p-6">
       <AdminHeader
         userName={userName}
         lastRefresh={d.lastRefresh.toLocaleTimeString()}
@@ -24,7 +24,7 @@ export default function AdminDashboardClient({ initialStats, initialReports, use
       />
       <StatsRow stats={d.stats} />
 
-      <div className="mb-6 flex gap-2">
+      <div className="mb-6 flex flex-wrap gap-2">
         {['map', 'reports'].map((tab) => (
           <button
             key={tab}
@@ -40,7 +40,7 @@ export default function AdminDashboardClient({ initialStats, initialReports, use
 
       {activeTab === 'map' ? (
         <div className={`grid gap-5 ${d.selectedRoad ? 'grid-cols-1 lg:grid-cols-[1fr_400px]' : 'grid-cols-1'}`}>
-          <div className="h-[640px] overflow-hidden rounded-2xl border border-border bg-surface">
+          <div className="h-[70vh] max-h-160 min-h-100 overflow-hidden rounded-2xl border border-border bg-surface">
             <AdminMap onRoadClick={d.handleRoadClick} reports={d.reports} />
           </div>
           {d.selectedRoad && (

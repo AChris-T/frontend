@@ -63,13 +63,14 @@ export function useReportWizard(defaultEmail = '') {
 
       const res = await scanMedia(formData);
       setAiResult(res.data);
-      if (res.data.fault_detected) {
-        setFaultType(res.data.fault_type || '');
-        setSeverity(res.data.severity || '');
-      }
+      // AI's finding is authoritative here — there's no manual override step.
+      setFaultType(res.data.fault_type || 'none');
+      setSeverity(res.data.severity || 'none');
     } catch {
       setAiResult({ fault_detected: false, message: 'AI scan failed' });
-      toast.error('AI scan failed — please select fault type manually');
+      setFaultType('other');
+      setSeverity('low');
+      toast.error('AI scan failed — this report will be flagged for manual review');
     } finally {
       setScanning(false);
     }
@@ -114,7 +115,7 @@ export function useReportWizard(defaultEmail = '') {
   return {
     step, setStep, location, locationError, gettingLocation, getLocation,
     media, mediaType, preview, scanning, aiResult,
-    faultType, setFaultType, severity, setSeverity, description, setDescription,
+    faultType, severity, description, setDescription,
     email, setEmail,
     loading, success, reportId,
     handleFile, handleSubmit, reset,
