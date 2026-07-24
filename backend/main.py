@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from database import test_connection
+from database import test_connection, engine, Base
 from routes import users, roads, reports, admin
+import models
 import uvicorn
 
 app = FastAPI(
@@ -10,6 +11,12 @@ app = FastAPI(
     description="GIS-Based Road Infrastructure Condition Monitoring System",
     version="1.0.0"
 )
+
+@app.on_event("startup")
+def on_startup():
+    # Create all tables defined in models.py that do not yet exist.
+    # This does not drop or modify existing tables.
+    Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
