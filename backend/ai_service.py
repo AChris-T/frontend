@@ -144,7 +144,10 @@ def detect_faults_in_image(img: np.ndarray) -> list:
 
         if lines is not None:
             for line in lines:
-                x1, y1, x2, y2 = line[0]
+                coords = np.asarray(line, dtype=np.int32).reshape(-1)
+                if coords.size < 4:
+                    continue
+                x1, y1, x2, y2 = coords[:4]
                 angle = abs(np.degrees(np.arctan2(y2 - y1, x2 - x1)))
                 if angle < 20 or angle > 160:
                     h_lines += 1
