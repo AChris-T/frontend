@@ -41,6 +41,27 @@ def get_db():
     finally:
         db.close()
 
+def init_db():
+    """Enable PostGIS and create tables if they don't exist."""
+    import models  # noqa: F401 — register models with Base.metadata
+
+    # CREATE EXTENSION must run outside a transaction on some Postgres builds.
+    with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
+        try:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+            logger.info("PostGIS extension enabled")
+        except Exception as exc:
+            raise RuntimeError(
+                "PostGIS is required but could not be enabled. Railway's default "
+                "PostgreSQL does not include PostGIS — deploy the PostGIS template "
+                "instead (https://railway.com/template/postgis) and point "
+                "DATABASE_URL at that database."
+            ) from exc
+
+    Base.metadata.create_all(bind=engine)
+    logger.info("Database tables ready")
+
+
 def test_connection():
     try:
         with engine.connect() as conn:
