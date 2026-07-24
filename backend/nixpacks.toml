@@ -1,2 +1,2 @@
 [phases.setup]
-cmds = ["apt-get update && apt-get install -y libxcb1 libx11-6 libxext6"]
+nixpkgs = ["xorg.libxcb", "xorg.libX11", "xorg.libXext"]
