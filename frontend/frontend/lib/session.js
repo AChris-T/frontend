@@ -1,7 +1,6 @@
 import { cookies } from 'next/headers';
 import { decodeToken } from './auth';
-
-const BACKEND_URL = (process.env.BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '');
+import { getBackendUrl } from './backend-url';
 
 export async function getSession() {
   const store = await cookies();
@@ -15,7 +14,7 @@ export async function backendFetch(path, init = {}) {
   const headers = { ...(init.headers || {}) };
   if (session) headers.Authorization = `Bearer ${session.token}`;
 
-  const res = await fetch(`${BACKEND_URL}${path}`, {
+  const res = await fetch(`${getBackendUrl()}${path}`, {
     ...init,
     headers,
     cache: 'no-store',
