@@ -1,5 +1,3 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -8,18 +6,16 @@ from routes import users, roads, reports, admin
 import uvicorn
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    init_db()
-    yield
-
-
 app = FastAPI(
     title="UI Road Monitor API",
     description="GIS-Based Road Infrastructure Condition Monitoring System",
     version="1.0.0",
-    lifespan=lifespan,
 )
+
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
 
 app.add_middleware(
     CORSMiddleware,
