@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from database import test_connection, engine, Base
 from routes import users, roads, reports, admin
 import models
@@ -14,6 +15,13 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
+    # Ensure the PostGIS extension is enabled before creating tables that use
+    # spatial types (e.g. Geometry columns). Without this, PostgreSQL raises
+    # "type geometry does not exist" when create_all() runs.
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+        conn.commit()
+
     # Create all tables defined in models.py that do not yet exist.
     # This does not drop or modify existing tables.
     Base.metadata.create_all(bind=engine)
