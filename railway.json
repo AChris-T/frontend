@@ -1,6 +1,5 @@
 {
   "build": {
-    "builder": "nixpacks",
-    "nixpacksConfigPath": "backend/nixpacks.toml"
+    "dockerfilePath": "backend/Dockerfile"
   }
 }
