@@ -42,7 +42,7 @@ def get_db():
         db.close()
 
 def init_db():
-    """Enable PostGIS and create tables if they don't exist."""
+    """Enable PostGIS if possible and create tables, degrading gracefully."""
     import models  # noqa: F401 — register models with Base.metadata
 
     # CREATE EXTENSION must run outside a transaction on some Postgres builds.
@@ -51,15 +51,44 @@ def init_db():
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
             logger.info("PostGIS extension enabled")
         except Exception as exc:
-            raise RuntimeError(
-                "PostGIS is required but could not be enabled. Railway's default "
-                "PostgreSQL does not include PostGIS — deploy the PostGIS template "
-                "instead (https://railway.com/template/postgis) and point "
-                "DATABASE_URL at that database."
-            ) from exc
+            logger.warning(
+                "Could not enable the PostGIS extension (%s). The 'roads' table "
+                "uses PostGIS geometry columns and will be skipped — all other "
+                "tables will still be created. To enable spatial features, deploy "
+                "the PostGIS template (https://railway.com/template/postgis), "
+                "point DATABASE_URL at that database, then restart the app so the "
+                "roads table can be created.",
+                exc,
+            )
 
-    Base.metadata.create_all(bind=engine)
-    logger.info("Database tables ready")
+    try:
+        # Fast path: PostGIS is available (or was just enabled above) and every
+        # table, including the spatial 'roads' table, can be created in one go.
+        Base.metadata.create_all(bind=engine)
+        logger.info("Database tables ready")
+    except Exception as exc:
+        if "geometry" not in str(exc).lower():
+            raise
+
+        # PostGIS isn't actually usable (extension creation appeared to
+        # succeed, or its effects aren't visible yet). Fall back to creating
+        # every table except the ones that depend on the geometry type, so the
+        # rest of the application keeps working.
+        logger.warning(
+            "PostGIS is not enabled on this database (%s). Skipping creation "
+            "of the 'roads' table — spatial features will be unavailable "
+            "until PostGIS is enabled and the app is restarted. All other "
+            "tables have been created normally.",
+            exc,
+        )
+
+        non_spatial_tables = [
+            table
+            for table in Base.metadata.sorted_tables
+            if table.name != models.Road.__tablename__
+        ]
+        Base.metadata.create_all(bind=engine, tables=non_spatial_tables)
+        logger.info("Non-spatial database tables ready (roads table skipped)")
 
 
 def test_connection():
