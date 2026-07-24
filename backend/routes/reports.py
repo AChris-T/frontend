@@ -50,8 +50,8 @@ async def scan_media(
     video_path = None
 
     try:
-        if photo:
-            ext = os.path.splitext(photo.filename)[1]
+        if photo and photo.filename:
+            ext = os.path.splitext(photo.filename)[1] or '.jpg'
             filename = f"scan_{uuid.uuid4()}{ext}"
             photo_dir = os.path.join(UPLOAD_DIR, "photos")
             os.makedirs(photo_dir, exist_ok=True)
@@ -60,8 +60,8 @@ async def scan_media(
                 shutil.copyfileobj(photo.file, f)
             result = analyze_image(photo_path)
 
-        elif video:
-            ext = os.path.splitext(video.filename)[1]
+        elif video and video.filename:
+            ext = os.path.splitext(video.filename)[1] or '.mp4'
             filename = f"scan_{uuid.uuid4()}{ext}"
             video_dir = os.path.join(UPLOAD_DIR, "videos")
             os.makedirs(video_dir, exist_ok=True)
@@ -71,9 +71,10 @@ async def scan_media(
             result = analyze_video(video_path)
 
         else:
+            print(f"⚠️ Scan called without media — photo={bool(photo)}, video={bool(video)}")
             return {
                 "fault_detected": False,
-                "message": "No media provided"
+                "message": "No media provided — upload may have failed in transit"
             }
 
         return result

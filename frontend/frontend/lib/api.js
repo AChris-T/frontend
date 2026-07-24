@@ -1,5 +1,11 @@
 import axios from 'axios';
 
+/** Public Railway backend URL — required in production for file uploads (scan/submit). */
+export function getPublicBackendUrl() {
+  const url = process.env.NEXT_PUBLIC_BACKEND_URL;
+  return url ? url.replace(/\/+$/, '') : null;
+}
+
 const api = axios.create({
   baseURL: '/api',
   withCredentials: true,
@@ -7,16 +13,25 @@ const api = axios.create({
 
 const uploadConfig = { timeout: 120000 };
 
-// Auth
+/** File uploads bypass the Vercel proxy to avoid 4.5MB limits and broken multipart forwarding. */
+function uploadPost(path, formData) {
+  const backend = getPublicBackendUrl();
+  if (backend) {
+    return axios.post(`${backend}${path}`, formData, uploadConfig);
+  }
+  return api.post(path, formData, uploadConfig);
+}
+
+// Auth — JSON requests stay on same-origin /api proxy (cookies)
 export const registerUser = (data) => api.post('/auth/register', data);
 export const loginUser = (data) => api.post('/auth/login', data);
 export const logoutUser = () => api.post('/auth/logout');
 export const getMe = () => api.get('/auth/me');
 export const reverseGeocode = (lat, lon) => api.get('/geocode', { params: { lat, lon } });
 
-// Reports — long timeout for AI scan + file upload
-export const scanMedia = (formData) => api.post('/reports/scan', formData, uploadConfig);
-export const submitReport = (formData) => api.post('/reports', formData, uploadConfig);
+// Reports — direct to Railway backend in production
+export const scanMedia = (formData) => uploadPost('/reports/scan', formData);
+export const submitReport = (formData) => uploadPost('/reports', formData);
 export const getMyReports = () => api.get('/reports/my-reports');
 export const getReport = (id) => api.get(`/reports/${id}`);
 

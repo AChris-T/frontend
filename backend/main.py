@@ -3,7 +3,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from database import init_db, test_connection
 from routes import users, roads, reports, admin
+import os
 import uvicorn
+
+
+def _cors_origins() -> list[str]:
+    origins: list[str] = []
+    frontend = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+    if frontend:
+        origins.append(frontend)
+    extra = os.getenv("CORS_ORIGINS", "")
+    for origin in extra.split(","):
+        origin = origin.strip().rstrip("/")
+        if origin and origin not in origins:
+            origins.append(origin)
+    return origins or ["*"]
 
 
 app = FastAPI(
@@ -19,7 +33,7 @@ def on_startup():
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

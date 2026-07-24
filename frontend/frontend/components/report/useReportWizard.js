@@ -81,7 +81,7 @@ export function useReportWizard(defaultEmail = '') {
       const formData = new FormData();
       formData.append('latitude', String(location.lat));
       formData.append('longitude', String(location.lon));
-      formData.append(type, file);
+      formData.append(type, file, file.name || (type === 'video' ? 'upload.mp4' : 'upload.jpg'));
 
       const res = await scanMedia(formData);
       const result = res.data || { fault_detected: false, message: 'Empty scan response' };
@@ -89,11 +89,15 @@ export function useReportWizard(defaultEmail = '') {
       setFaultType(result.fault_type || 'other');
       setSeverity(result.severity || 'low');
     } catch (err) {
-      const message = err.response?.data?.detail || err.response?.data?.message || 'AI scan failed';
+      const detail = err.response?.data?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : err.response?.data?.message
+          || (err.code === 'ECONNABORTED' ? 'Scan timed out — try a smaller photo' : 'AI scan failed');
       setAiResult({ fault_detected: false, message, all_detections: [] });
       setFaultType('other');
       setSeverity('low');
-      toast.error(typeof message === 'string' ? message : 'AI scan failed — this report will be flagged for manual review');
+      toast.error(message);
     } finally {
       setScanning(false);
       e.target.value = '';
