@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = 'frontend-production-9e60.up.railway.app';
 
 async function proxy(request, { params }) {
   const { path } = await params;
