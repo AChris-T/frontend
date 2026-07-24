@@ -37,10 +37,11 @@ def root():
 
 @app.get("/health")
 def health():
-    db_status = test_connection()
+    connected, error = test_connection()
     return {
         "status": "healthy",
-        "database": "connected" if db_status else "disconnected"
+        "database": "connected" if connected else "disconnected",
+        "database_error": error
     }
 
 if __name__ == "__main__":
