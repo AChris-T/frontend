@@ -1,9 +1,19 @@
 import axios from 'axios';
 
-/** Public Railway backend URL — required in production for file uploads (scan/submit). */
+function normalizeBackendUrl(raw) {
+  if (!raw) return null;
+  let url = raw.trim();
+  if (url.startsWith('BACKEND_URL=')) url = url.slice('BACKEND_URL='.length);
+  if (url.startsWith('NEXT_PUBLIC_BACKEND_URL=')) {
+    url = url.slice('NEXT_PUBLIC_BACKEND_URL='.length);
+  }
+  url = url.replace(/\/+$/, '');
+  return url || null;
+}
+
+/** Railway backend URL for direct file uploads (scan/submit) in production. */
 export function getPublicBackendUrl() {
-  const url = process.env.NEXT_PUBLIC_BACKEND_URL;
-  return url ? url.replace(/\/+$/, '') : null;
+  return normalizeBackendUrl(process.env.NEXT_PUBLIC_BACKEND_URL);
 }
 
 const api = axios.create({
@@ -13,10 +23,10 @@ const api = axios.create({
 
 const uploadConfig = { timeout: 120000 };
 
-/** File uploads bypass the Vercel proxy to avoid 4.5MB limits and broken multipart forwarding. */
+/** File uploads bypass the Vercel proxy to avoid broken multipart forwarding. */
 function uploadPost(path, formData) {
   const backend = getPublicBackendUrl();
-  if (backend) {
+  if (backend && !backend.includes('localhost')) {
     return axios.post(`${backend}${path}`, formData, uploadConfig);
   }
   return api.post(path, formData, uploadConfig);
@@ -29,7 +39,7 @@ export const logoutUser = () => api.post('/auth/logout');
 export const getMe = () => api.get('/auth/me');
 export const reverseGeocode = (lat, lon) => api.get('/geocode', { params: { lat, lon } });
 
-// Reports — direct to Railway backend in production
+// Reports — direct to Railway backend when NEXT_PUBLIC_BACKEND_URL is set
 export const scanMedia = (formData) => uploadPost('/reports/scan', formData);
 export const submitReport = (formData) => uploadPost('/reports', formData);
 export const getMyReports = () => api.get('/reports/my-reports');

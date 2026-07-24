@@ -49,21 +49,50 @@ def get_severity(confidence: float) -> str:
         return 'low'
 
 
+def _load_image(image_path: str):
+    """Load image for OpenCV analysis, with byte-decode and PIL fallbacks."""
+    img = cv2.imread(image_path)
+    if img is not None:
+        return img
+
+    try:
+        with open(image_path, 'rb') as f:
+            data = f.read()
+    except OSError as exc:
+        print(f"❌ Could not read image file {image_path}: {exc}")
+        return None
+
+    if not data:
+        print(f"❌ Image file is empty: {image_path}")
+        return None
+
+    arr = np.frombuffer(data, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is not None:
+        return img
+
+    try:
+        from PIL import Image
+        import io
+        pil = Image.open(io.BytesIO(data))
+        pil = pil.convert('RGB')
+        return cv2.cvtColor(np.array(pil), cv2.COLOR_RGB2BGR)
+    except Exception as exc:
+        print(f"❌ Could not decode image {image_path} ({len(data)} bytes): {exc}")
+        return None
+
+
 # ─────────────────────────────────────────────────────────────
 # CORE DETECTION ENGINE
 # ─────────────────────────────────────────────────────────────
-def detect_all_faults(image_path: str) -> list:
+def detect_faults_in_image(img: np.ndarray) -> list:
     """
-    Multi-fault detector — returns ALL faults found in image.
+    Multi-fault detector — returns ALL faults found in image array.
     Uses 5 detection methods combined for maximum accuracy.
     """
     detections = []
 
     try:
-        img = cv2.imread(image_path)
-        if img is None:
-            return []
-
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         height, width = gray.shape
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
@@ -324,6 +353,13 @@ def detect_all_faults(image_path: str) -> list:
     return detections
 
 
+def detect_all_faults(image_path: str) -> list:
+    img = _load_image(image_path)
+    if img is None:
+        return []
+    return detect_faults_in_image(img)
+
+
 # ─────────────────────────────────────────────────────────────
 # DEDUPLICATION
 # ─────────────────────────────────────────────────────────────
@@ -348,8 +384,23 @@ def analyze_image(image_path: str) -> dict:
     print(f"{'='*50}")
 
     try:
-        # Run all detectors
-        raw_detections = detect_all_faults(image_path)
+        img = _load_image(image_path)
+        if img is None:
+            file_size = os.path.getsize(image_path) if os.path.exists(image_path) else 0
+            return {
+                'fault_detected': False,
+                'fault_type': 'none',
+                'severity': 'none',
+                'confidence': 0,
+                'all_detections': [],
+                'total_faults': 0,
+                'message': (
+                    f'Could not read uploaded image ({file_size} bytes). '
+                    'The file may have been corrupted during upload — try JPG or PNG.'
+                ),
+            }
+
+        raw_detections = detect_faults_in_image(img)
 
         # Deduplicate
         detections = deduplicate_detections(raw_detections)

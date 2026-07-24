@@ -50,24 +50,42 @@ async def scan_media(
     video_path = None
 
     try:
-        if photo and photo.filename:
-            ext = os.path.splitext(photo.filename)[1] or '.jpg'
+        if photo:
+            content = await photo.read()
+            if not content:
+                print("⚠️ Scan photo field present but empty")
+                return {
+                    "fault_detected": False,
+                    "message": "Uploaded photo was empty — please try again",
+                }
+
+            ext = os.path.splitext(photo.filename or '')[1].lower() or '.jpg'
             filename = f"scan_{uuid.uuid4()}{ext}"
             photo_dir = os.path.join(UPLOAD_DIR, "photos")
             os.makedirs(photo_dir, exist_ok=True)
             photo_path = os.path.join(photo_dir, filename)
             with open(photo_path, "wb") as f:
-                shutil.copyfileobj(photo.file, f)
+                f.write(content)
+            print(f"📷 Scan photo saved: {photo_path} ({len(content)} bytes)")
             result = analyze_image(photo_path)
 
-        elif video and video.filename:
-            ext = os.path.splitext(video.filename)[1] or '.mp4'
+        elif video:
+            content = await video.read()
+            if not content:
+                print("⚠️ Scan video field present but empty")
+                return {
+                    "fault_detected": False,
+                    "message": "Uploaded video was empty — please try again",
+                }
+
+            ext = os.path.splitext(video.filename or '')[1].lower() or '.mp4'
             filename = f"scan_{uuid.uuid4()}{ext}"
             video_dir = os.path.join(UPLOAD_DIR, "videos")
             os.makedirs(video_dir, exist_ok=True)
             video_path = os.path.join(video_dir, filename)
             with open(video_path, "wb") as f:
-                shutil.copyfileobj(video.file, f)
+                f.write(content)
+            print(f"🎬 Scan video saved: {video_path} ({len(content)} bytes)")
             result = analyze_video(video_path)
 
         else:

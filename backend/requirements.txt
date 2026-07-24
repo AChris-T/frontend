@@ -10,6 +10,7 @@ bcrypt
 python-multipart
 pydantic[email]
 opencv-python-headless
+Pillow
 numpy
 ultralytics
 boto3
