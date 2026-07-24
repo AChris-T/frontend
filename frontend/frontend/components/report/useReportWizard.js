@@ -3,6 +3,15 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { scanMedia, submitReport } from '@/lib/api';
 
+function readFilePreview(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read file preview'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export function useReportWizard(defaultEmail = '') {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState(defaultEmail);
@@ -44,35 +53,50 @@ export function useReportWizard(defaultEmail = '') {
   };
 
   const handleFile = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!location) {
+      toast.error('Location is required before uploading media');
+      setStep(1);
+      return;
+    }
 
     const type = file.type.startsWith('video') ? 'video' : 'photo';
     setMedia(file);
     setMediaType(type);
-    setPreview(URL.createObjectURL(file));
     setStep(3);
     setScanning(true);
     setAiResult(null);
 
     try {
+      const previewUrl = await readFilePreview(file);
+      setPreview(previewUrl);
+    } catch {
+      setPreview('');
+      toast.error('Could not preview this file, but scanning will continue');
+    }
+
+    try {
       const formData = new FormData();
-      formData.append('latitude', location.lat);
-      formData.append('longitude', location.lon);
+      formData.append('latitude', String(location.lat));
+      formData.append('longitude', String(location.lon));
       formData.append(type, file);
 
       const res = await scanMedia(formData);
-      setAiResult(res.data);
-      // AI's finding is authoritative here — there's no manual override step.
-      setFaultType(res.data.fault_type || 'none');
-      setSeverity(res.data.severity || 'none');
-    } catch {
-      setAiResult({ fault_detected: false, message: 'AI scan failed' });
+      const result = res.data || { fault_detected: false, message: 'Empty scan response' };
+      setAiResult(result);
+      setFaultType(result.fault_type || 'other');
+      setSeverity(result.severity || 'low');
+    } catch (err) {
+      const message = err.response?.data?.detail || err.response?.data?.message || 'AI scan failed';
+      setAiResult({ fault_detected: false, message, all_detections: [] });
       setFaultType('other');
       setSeverity('low');
-      toast.error('AI scan failed — this report will be flagged for manual review');
+      toast.error(typeof message === 'string' ? message : 'AI scan failed — this report will be flagged for manual review');
     } finally {
       setScanning(false);
+      e.target.value = '';
     }
   };
 
@@ -80,8 +104,8 @@ export function useReportWizard(defaultEmail = '') {
     setLoading(true);
     try {
       const formData = new FormData();
-      formData.append('latitude', location.lat);
-      formData.append('longitude', location.lon);
+      formData.append('latitude', String(location.lat));
+      formData.append('longitude', String(location.lon));
       formData.append('fault_type', faultType);
       formData.append('severity', severity);
       if (description) formData.append('description', description);

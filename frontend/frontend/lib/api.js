@@ -5,6 +5,8 @@ const api = axios.create({
   withCredentials: true,
 });
 
+const uploadConfig = { timeout: 120000 };
+
 // Auth
 export const registerUser = (data) => api.post('/auth/register', data);
 export const loginUser = (data) => api.post('/auth/login', data);
@@ -12,9 +14,9 @@ export const logoutUser = () => api.post('/auth/logout');
 export const getMe = () => api.get('/auth/me');
 export const reverseGeocode = (lat, lon) => api.get('/geocode', { params: { lat, lon } });
 
-// Reports
-export const scanMedia = (formData) => api.post('/reports/scan', formData);
-export const submitReport = (formData) => api.post('/reports', formData);
+// Reports — long timeout for AI scan + file upload
+export const scanMedia = (formData) => api.post('/reports/scan', formData, uploadConfig);
+export const submitReport = (formData) => api.post('/reports', formData, uploadConfig);
 export const getMyReports = () => api.get('/reports/my-reports');
 export const getReport = (id) => api.get(`/reports/${id}`);
 

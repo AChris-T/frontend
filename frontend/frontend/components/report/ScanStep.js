@@ -37,9 +37,9 @@ export default function ScanStep({
             {aiResult.fault_detected ? `AI Detected ${aiResult.total_faults} Fault(s)` : 'AI could not detect a fault automatically'}
           </p>
           <p className="text-xs text-ink-secondary">
-            {aiResult.fault_detected
+            {aiResult.message || (aiResult.fault_detected
               ? 'This report will be filed with the result below.'
-              : 'This report will be flagged for manual review by the Works team.'}
+              : 'This report will be flagged for manual review by the Works team.')}
           </p>
         </div>
       )}

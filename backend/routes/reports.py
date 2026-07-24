@@ -79,6 +79,9 @@ async def scan_media(
         return result
 
     except Exception as e:
+        print(f"❌ Scan error: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             "fault_detected": False,
             "message": f"Scan error: {str(e)}"
