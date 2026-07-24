@@ -3,8 +3,7 @@ from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 import os
 
-GPKG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "UI_Campus_Roads.gpkg")
-
+GPKG_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "UI_Campus_Roads.gpkg")
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
