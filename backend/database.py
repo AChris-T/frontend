@@ -1,15 +1,23 @@
 import logging
+import os
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
-import os
 
 logger = logging.getLogger(__name__)
 
 load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
+
+REQUIRED_TABLES = {
+    "users",
+    "roads",
+    "fault_reports",
+    "status_history",
+    "notifications",
+}
 
 # Defensive fix: some misconfigurations (e.g. a variable set in Railway as
 # "DATABASE_URL=postgresql://..." instead of just the value, or a malformed
@@ -42,13 +50,14 @@ def get_db():
         db.close()
 
 def init_db():
-    """Enable PostGIS and create tables if they don't exist."""
+    """Enable PostGIS, create tables, and seed road data if needed."""
     import models  # noqa: F401 — register models with Base.metadata
 
     # CREATE EXTENSION must run outside a transaction on some Postgres builds.
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as conn:
         try:
             conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+            print("✅ PostGIS extension enabled")
             logger.info("PostGIS extension enabled")
         except Exception as exc:
             raise RuntimeError(
@@ -58,7 +67,20 @@ def init_db():
                 "DATABASE_URL at that database."
             ) from exc
 
-    Base.metadata.create_all(bind=engine)
+    for table in Base.metadata.sorted_tables:
+        table.create(bind=engine, checkfirst=True)
+
+    existing_tables = set(inspect(engine).get_table_names())
+    missing_tables = REQUIRED_TABLES - existing_tables
+    if missing_tables:
+        raise RuntimeError(
+            f"Database init failed — missing tables: {sorted(missing_tables)}"
+        )
+
+    from seed_roads import seed_roads_if_empty
+
+    seed_roads_if_empty()
+    print("✅ Database tables ready")
     logger.info("Database tables ready")
 
 

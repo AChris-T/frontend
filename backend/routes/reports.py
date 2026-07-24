@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 from database import get_db
 import models, schemas, auth
 from typing import Optional
@@ -18,17 +19,21 @@ UPLOAD_DIR = "uploads"
 
 
 def find_nearest_road(lat: float, lon: float, db: Session) -> Optional[int]:
-    result = db.execute(text("""
-        SELECT id FROM roads
-        WHERE geom IS NOT NULL
-        ORDER BY ST_Distance(
-            geom::geography,
-            ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography
-        )
-        LIMIT 1
-    """), {"lat": lat, "lon": lon})
-    row = result.fetchone()
-    return row.id if row else None
+    try:
+        result = db.execute(text("""
+            SELECT id FROM roads
+            WHERE geom IS NOT NULL
+            ORDER BY ST_Distance(
+                geom::geography,
+                ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography
+            )
+            LIMIT 1
+        """), {"lat": lat, "lon": lon})
+        row = result.fetchone()
+        return row.id if row else None
+    except ProgrammingError:
+        db.rollback()
+        return None
 
 
 # ─────────────────────────────────────────────
