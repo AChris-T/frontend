@@ -20,5 +20,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Start the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the application — Railway (and Render) assign the port via $PORT at
+# runtime; JSON-array CMD can't expand env vars, so this needs shell form.
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
