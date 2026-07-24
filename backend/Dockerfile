@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code and campus road data
 COPY backend/ .
-COPY data/ /app/data/
+COPY ../data/ /app/data/
 
 # Start the application — Railway (and Render) assign the port via $PORT at
 # runtime; JSON-array CMD can't expand env vars, so this needs shell form.
