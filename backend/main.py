@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from database import test_connection, engine, Base
+from database import test_connection, engine, Base, DATABASE_URL
 from routes import users, roads, reports, admin
 import models
+import psycopg2
 import uvicorn
 
 app = FastAPI(
@@ -14,6 +15,24 @@ app = FastAPI(
 
 @app.on_event("startup")
 def on_startup():
+    # Create the PostGIS extension using a raw psycopg2 connection with
+    # autocommit enabled. This guarantees the extension is fully committed
+    # to the database before anything else tries to use spatial types.
+    # Doing this through SQLAlchemy's connection pool can leave the
+    # extension invisible to other pooled connections, so we go around it.
+    raw_conn = psycopg2.connect(DATABASE_URL)
+    try:
+        raw_conn.autocommit = True
+        with raw_conn.cursor() as cursor:
+            cursor.execute("CREATE EXTENSION IF NOT EXISTS postgis;")
+    finally:
+        raw_conn.close()
+
+    # Dispose of the SQLAlchemy engine's connection pool so that any
+    # connections cached before the extension existed are discarded.
+    # Subsequent connections will be created fresh and will see PostGIS.
+    engine.dispose()
+
     # Create all tables defined in models.py that do not yet exist.
     # This does not drop or modify existing tables.
     Base.metadata.create_all(bind=engine)
