@@ -382,8 +382,25 @@ def deduplicate_detections(detections: list) -> list:
 # PUBLIC API — analyze_image
 # ─────────────────────────────────────────────────────────────
 def analyze_image(image_path: str) -> dict:
+    """
+    Analyzes a photo for road faults. Tries Gemini Vision first (more
+    accurate, understands real-world context); falls back to the local
+    OpenCV heuristics below if Gemini is unavailable or errors out.
+    """
+    try:
+        from gemini_service import analyze_image_gemini
+        gemini_result = analyze_image_gemini(image_path)
+        if gemini_result is not None:
+            return gemini_result
+    except Exception as e:
+        print(f"⚠️ Gemini detection unavailable, falling back to OpenCV: {e}")
+
+    return _analyze_image_cv(image_path)
+
+
+def _analyze_image_cv(image_path: str) -> dict:
     print(f"\n{'='*50}")
-    print(f"🔍 Analyzing: {image_path}")
+    print(f"🔍 Analyzing (OpenCV fallback): {image_path}")
     print(f"{'='*50}")
 
     try:

@@ -14,3 +14,4 @@ Pillow
 numpy
 ultralytics
 boto3
+google-genai
