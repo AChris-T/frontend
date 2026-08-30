@@ -4,7 +4,7 @@ import Badge from '@/components/ui/Badge';
 import StatusDropdown from './StatusDropdown';
 import DeleteReportButton from './DeleteReportButton';
 
-export default function ReportRow({ report, onSelect, onUpdate, updating, onDelete, deleting }) {
+export default function ReportRow({ report, roadName, onSelect, onUpdate, updating, onDelete, deleting }) {
   const fm = faultMeta(report.fault_type);
   const sev = severityMeta(report.severity);
   const st = statusMeta(report.status);
@@ -36,7 +36,7 @@ export default function ReportRow({ report, onSelect, onUpdate, updating, onDele
       </td>
       <td className="px-3 py-3"><Badge icon={sev.icon} label={sev.label} color={sev.color} /></td>
       <td className="px-3 py-3"><Badge icon={st.icon} label={st.label} color={st.color} /></td>
-      <td className="px-3 py-3 text-ink-muted">{report.road_name || (report.road_id ? `#${report.road_id}` : '—')}</td>
+      <td className="px-3 py-3 text-ink-muted">{report.road_name || roadName || (report.road_id ? `#${report.road_id}` : '—')}</td>
       <td className="whitespace-nowrap px-3 py-3 text-ink-muted">
         {new Date(report.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
       </td>

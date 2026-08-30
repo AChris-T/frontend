@@ -4,7 +4,7 @@ import Badge from '@/components/ui/Badge';
 import StatusDropdown from './StatusDropdown';
 import DeleteReportButton from './DeleteReportButton';
 
-export default function ReportCardRow({ report, onSelect, onUpdate, updating, onDelete, deleting }) {
+export default function ReportCardRow({ report, roadName, onSelect, onUpdate, updating, onDelete, deleting }) {
   const fm = faultMeta(report.fault_type);
   const sev = severityMeta(report.severity);
   const st = statusMeta(report.status);
@@ -40,7 +40,7 @@ export default function ReportCardRow({ report, onSelect, onUpdate, updating, on
 
       <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
         <Badge icon={sev.icon} label={sev.label} color={sev.color} />
-        <span>{report.road_name || (report.road_id ? `Road #${report.road_id}` : 'Unmatched')}</span>
+        <span>{report.road_name || roadName || (report.road_id ? `Road #${report.road_id}` : 'Unmatched')}</span>
         <span>·</span>
         <span>{new Date(report.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
       </div>

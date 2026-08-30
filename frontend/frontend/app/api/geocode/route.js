@@ -15,7 +15,8 @@ export async function GET(request) {
       { headers: { 'User-Agent': 'ui-road-monitor-admin-dashboard/1.0' } }
     );
     const data = await res.json();
-    return NextResponse.json({ address: data.display_name || null });
+    const roadName = data.address?.road || data.address?.pedestrian || data.address?.path || data.address?.footway || null;
+    return NextResponse.json({ address: data.display_name || null, roadName });
   } catch {
     return NextResponse.json({ address: null });
   }
