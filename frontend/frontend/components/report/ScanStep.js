@@ -1,4 +1,5 @@
-import { Bot, Search, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Bot, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import ScanOverlay from '@/components/ui/ScanOverlay';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
@@ -16,19 +17,23 @@ export default function ScanStep({
         <Bot className="h-5 w-5 text-brand" /> AI Analysis
       </h2>
 
-      {preview && (
-        mediaType === 'photo'
-          ? <img src={preview} alt="Uploaded" className="mb-4 h-52 w-full rounded-xl object-cover" />
-          : <video src={preview} controls className="mb-4 w-full rounded-xl" />
-      )}
-
-      {scanning && (
-        <div className="mb-4 rounded-xl bg-info/10 p-6 text-center">
-          <Search className="mx-auto mb-2 h-8 w-8 animate-pulse text-info" />
-          <p className="text-sm font-semibold text-info">AI is scanning your media…</p>
-          <p className="text-xs text-ink-muted">Detecting fault type and severity</p>
-        </div>
-      )}
+      {(preview || scanning) && <div className="relative mb-4 overflow-hidden rounded-2xl bg-[#07111f]">
+        {preview ? (
+          mediaType === 'photo'
+            ? <img src={preview} alt="Uploaded" className="h-64 w-full object-cover sm:h-72" />
+            : <video src={preview} controls={!scanning} muted className="h-64 w-full object-cover sm:h-72" />
+        ) : (
+          <div className="h-64 w-full sm:h-72" />
+        )}
+        {scanning && (
+          <ScanOverlay
+            label={mediaType === 'video' ? 'AI is scanning your video' : 'AI is scanning your photo'}
+            stages={mediaType === 'video'
+              ? ['Uploading video securely', 'Extracting key frames', 'Detecting surface cracks', 'Tracking faults across frames', 'Estimating severity']
+              : undefined}
+          />
+        )}
+      </div>}
 
       {!scanning && aiResult && (
         <div className={`mb-4 rounded-xl border-2 p-4 ${aiResult.fault_detected ? 'border-good bg-good/10' : 'border-warning bg-warning/10'}`}>
@@ -76,7 +81,7 @@ export default function ScanStep({
       <div className="flex gap-3">
         <Button variant="secondary" onClick={onBack} className="flex-1">Back</Button>
         <Button onClick={onContinue} disabled={scanning} className="flex-2">
-          {scanning ? 'Scanning…' : 'Continue'}
+          {scanning ? <><Loader2 className="h-4 w-4 animate-spin" /> Scanning…</> : 'Continue'}
         </Button>
       </div>
     </Card>

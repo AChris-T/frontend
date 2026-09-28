@@ -70,6 +70,8 @@ def init_db():
     for table in Base.metadata.sorted_tables:
         table.create(bind=engine, checkfirst=True)
 
+    _add_missing_columns()
+
     existing_tables = set(inspect(engine).get_table_names())
     missing_tables = REQUIRED_TABLES - existing_tables
     if missing_tables:
@@ -82,6 +84,21 @@ def init_db():
     seed_roads_if_empty()
     print("✅ Database tables ready")
     logger.info("Database tables ready")
+
+
+# create_all() never alters existing tables, so columns added to a model after
+# the table was first created are added here.
+_COLUMN_MIGRATIONS = [
+    "ALTER TABLE fault_reports ADD COLUMN IF NOT EXISTS location_name VARCHAR(200)",
+    "ALTER TABLE fault_reports ADD COLUMN IF NOT EXISTS address TEXT",
+    "ALTER TABLE fault_reports ADD COLUMN IF NOT EXISTS thumb_url TEXT",
+]
+
+
+def _add_missing_columns():
+    with engine.begin() as conn:
+        for statement in _COLUMN_MIGRATIONS:
+            conn.execute(text(statement))
 
 
 def test_connection():

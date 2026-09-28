@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getBackendUrl } from '@/lib/backend-url';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 export const runtime = 'nodejs';
 
 async function proxy(request, { params }) {

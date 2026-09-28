@@ -1,7 +1,10 @@
+import { MapPin, Navigation } from 'lucide-react';
 import { faultMeta, severityMeta, statusMeta, mediaUrl } from '@/lib/constants';
+import { locationLabel } from '@/lib/format';
 import Badge from '@/components/ui/Badge';
+import Thumbnail from '@/components/ui/Thumbnail';
 
-export default function ReportCard({ report, expanded, onToggle }) {
+export default function ReportCard({ report, expanded, onToggle, onLocate }) {
   const fm = faultMeta(report.fault_type);
   const sev = severityMeta(report.severity);
   const st = statusMeta(report.status);
@@ -22,6 +25,13 @@ export default function ReportCard({ report, expanded, onToggle }) {
         </div>
         <Badge icon={st.icon} label={st.label} color={st.color} />
       </div>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onLocate(report); }}
+        className="mt-2 flex max-w-full items-center gap-1.5 text-left text-xs font-medium text-brand hover:underline"
+      >
+        <MapPin className="h-3.5 w-3.5 shrink-0" /><span className="truncate">{locationLabel(report)}</span>
+      </button>
 
       {expanded && (
         <div className="mt-4 border-t border-border pt-4">
@@ -39,11 +49,18 @@ export default function ReportCard({ report, expanded, onToggle }) {
           </div>
 
           {report.photo_url && (
-            <img src={mediaUrl(report.photo_url)} alt="Fault" className="mb-3 h-48 w-full rounded-lg object-cover" />
+            <Thumbnail report={report} alt="Fault" className="mb-3 h-48 w-full rounded-lg" />
           )}
           {report.video_url && (
             <video src={mediaUrl(report.video_url)} controls className="mb-3 w-full rounded-lg" />
           )}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onLocate(report); }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-brand-ink"
+          >
+            <Navigation className="h-4 w-4" /> View location &amp; directions
+          </button>
         </div>
       )}
     </div>

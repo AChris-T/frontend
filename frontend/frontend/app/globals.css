@@ -72,3 +72,40 @@ body {
 * {
   border-color: var(--border);
 }
+
+/* ── Motion ─────────────────────────────────────────── */
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+@keyframes pop-in { from { opacity: 0; transform: translateY(6px) scale(0.98) } to { opacity: 1; transform: none } }
+@keyframes sheet-up { from { transform: translateY(100%) } to { transform: none } }
+@keyframes scan-sweep { 0% { top: -2% } 50% { top: 98% } 100% { top: -2% } }
+@keyframes pulse-ring { 0% { transform: scale(0.6); opacity: 0.7 } 100% { transform: scale(2.4); opacity: 0 } }
+@keyframes shimmer { 100% { transform: translateX(100%) } }
+@keyframes progress-indeterminate { 0% { left: -40% } 100% { left: 100% } }
+
+.animate-fade-in { animation: fade-in 180ms ease-out both }
+.animate-pop-in { animation: pop-in 200ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both }
+.animate-sheet-up { animation: sheet-up 260ms cubic-bezier(0.2, 0.9, 0.3, 1) both }
+.animate-scan-sweep { animation: scan-sweep 2.6s ease-in-out infinite }
+.animate-pulse-ring { animation: pulse-ring 1.8s ease-out infinite }
+.animate-progress-indeterminate { animation: progress-indeterminate 1.4s ease-in-out infinite }
+
+.skeleton { position: relative; overflow: hidden; background: var(--divider); }
+.skeleton::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+  animation: shimmer 1.4s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-scan-sweep, .animate-pulse-ring, .animate-progress-indeterminate, .skeleton::after { animation: none }
+}
+
+/* ── Leaflet polish ─────────────────────────────────── */
+.leaflet-container { font-family: var(--font-geist-sans), system-ui, sans-serif; background: var(--surface-2); }
+.leaflet-popup-content-wrapper { border-radius: 14px; padding: 0; overflow: hidden; box-shadow: 0 12px 32px rgba(0,0,0,0.18); }
+.leaflet-popup-content { margin: 0; width: auto !important; }
+.leaflet-control-zoom a { border-radius: 10px !important; }
+.leaflet-bar { border: none !important; box-shadow: 0 4px 14px rgba(0,0,0,0.15) !important; border-radius: 12px !important; overflow: hidden; }
+.fault-pin { background: transparent; border: none; }
+
+.scrollbar-thin { scrollbar-width: thin; }

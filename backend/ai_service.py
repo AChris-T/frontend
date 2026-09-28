@@ -395,7 +395,9 @@ def analyze_image(image_path: str) -> dict:
     except Exception as e:
         print(f"⚠️ Gemini detection unavailable, falling back to OpenCV: {e}")
 
-    return _analyze_image_cv(image_path)
+    result = _analyze_image_cv(image_path)
+    result.setdefault("engine", "opencv")
+    return result
 
 
 def _analyze_image_cv(image_path: str) -> dict:

@@ -10,7 +10,8 @@ import os, shutil, uuid
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ai_service import analyze_image, analyze_video
-from email_service import send_email, report_received_email
+from notifier import notify_report_received
+from geocoding import fill_report_location
 import storage
 
 router = APIRouter(prefix="/reports", tags=["Fault Reports"])
@@ -127,7 +128,6 @@ async def create_report(
 ):
     # Find nearest road
     road_id = find_nearest_road(latitude, longitude, db)
-    road = db.query(models.Road).filter(models.Road.id == road_id).first() if road_id else None
     reporter_email = email or (current_user.email if current_user else None)
 
     # Save files
@@ -136,8 +136,13 @@ async def create_report(
     photo_path = None
     video_path = None
 
+    thumb_url = None
     if photo:
         photo_url, photo_path = storage.upload_file(photo, "photos")
+        try:
+            thumb_url = storage.make_thumbnail(photo_path)
+        except Exception as e:
+            print(f"[warn] Thumbnail generation failed: {e}")
 
     if video:
         video_url, video_path = storage.upload_file(video, "videos")
@@ -160,6 +165,7 @@ async def create_report(
         longitude=longitude,
         description=description,
         photo_url=photo_url,
+        thumb_url=thumb_url,
         video_url=video_url,
         status="reported",
         fault_type=fault_type or "analyzing",
@@ -210,20 +216,12 @@ async def create_report(
     else:
         storage.cleanup_local(photo_path, video_path)
 
-    # Send confirmation email
+    # Resolve a readable address, then send the confirmation email (which
+    # geocodes itself if it runs first, so the email always has a place name).
     if reporter_email:
-        location_label = road.name if road and road.name else f"{latitude:.5f}, {longitude:.5f}"
-        background_tasks.add_task(
-            send_email,
-            reporter_email,
-            f"Report #{report.id} received — UI Road Monitor",
-            report_received_email(
-                report.id,
-                (fault_type or "Pending AI Analysis").replace('_', ' ').title(),
-                severity or "low",
-                location_label
-            )
-        )
+        background_tasks.add_task(notify_report_received, report.id, reporter_email)
+    else:
+        background_tasks.add_task(fill_report_location, report.id)
 
     return {
         "message": "Report submitted successfully",
@@ -344,12 +342,16 @@ def get_my_reports(
             "confidence": r.confidence,
             "status": r.status,
             "photo_url": r.photo_url,
+            "thumb_url": r.thumb_url,
             "video_url": r.video_url,
             "ai_result": r.ai_result,
             "description": r.description,
             "latitude": r.latitude,
             "longitude": r.longitude,
             "road_id": r.road_id,
+            "road_name": r.road.name if r.road else None,
+            "location_name": r.location_name,
+            "address": r.address,
             "created_at": r.created_at,
             "updated_at": r.updated_at
         } for r in reports
@@ -373,12 +375,16 @@ def get_report(report_id: int, db: Session = Depends(get_db)):
         "confidence": report.confidence,
         "status": report.status,
         "photo_url": report.photo_url,
+        "thumb_url": report.thumb_url,
         "video_url": report.video_url,
         "ai_result": report.ai_result,
         "description": report.description,
         "latitude": report.latitude,
         "longitude": report.longitude,
         "road_id": report.road_id,
+        "road_name": report.road.name if report.road else None,
+        "location_name": report.location_name,
+        "address": report.address,
         "created_at": report.created_at,
         "updated_at": report.updated_at
     }

@@ -59,6 +59,43 @@ def upload_file(file: UploadFile, subfolder: str) -> Tuple[str, str]:
     return f"/{local_path.replace(os.sep, '/')}", local_path
 
 
+THUMB_WIDTH = 640
+
+
+def make_thumbnail(local_path: str, source_url: str = None) -> str:
+    """Creates a small JPEG preview of a photo (EXIF-rotated, 640px wide) and
+    stores it next to the original. Returns its public URL / relative path.
+
+    Report photos are full-size phone images (often 5-10 MB); the dashboard
+    shows these thumbnails in tables, cards and map popups instead.
+    """
+    from io import BytesIO
+    from PIL import Image, ImageOps
+
+    with Image.open(local_path) as img:
+        img = ImageOps.exif_transpose(img).convert("RGB")
+        img.thumbnail((THUMB_WIDTH, THUMB_WIDTH * 2))
+        buf = BytesIO()
+        img.save(buf, "JPEG", quality=78, optimize=True, progressive=True)
+    data = buf.getvalue()
+
+    # Name the thumbnail after the original photo (not a temp download path).
+    base = os.path.basename((source_url or local_path).split("?")[0])
+    name = f"{os.path.splitext(base)[0]}.jpg"
+    if R2_ENABLED:
+        key = f"thumbs/{name}"
+        _client.put_object(Bucket=R2_BUCKET_NAME, Key=key, Body=data, ContentType="image/jpeg",
+                           CacheControl="public, max-age=31536000, immutable")
+        return f"{R2_PUBLIC_URL.rstrip('/')}/{key}"
+
+    thumb_dir = os.path.join(UPLOAD_DIR, "thumbs")
+    os.makedirs(thumb_dir, exist_ok=True)
+    thumb_path = os.path.join(thumb_dir, name)
+    with open(thumb_path, "wb") as f:
+        f.write(data)
+    return f"/{thumb_path.replace(os.sep, '/')}"
+
+
 def cleanup_local(*paths: str):
     """Removes local temp copies once they're no longer needed — only safe
     to call when R2 holds the permanent copy."""

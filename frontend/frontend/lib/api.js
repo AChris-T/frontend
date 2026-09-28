@@ -58,5 +58,17 @@ export const getAdminReports = () => api.get('/admin/reports');
 export const updateReportStatus = (id, data) =>
   api.put(`/admin/reports/${id}/status`, data);
 export const deleteReport = (id) => api.delete(`/admin/reports/${id}`);
+export const getAdminReport = (id) => api.get(`/admin/reports/${id}`);
+export const bulkUpdateStatus = (ids, status, note = '') =>
+  api.put('/admin/reports/bulk-status', { ids, status, note });
+export const bulkDeleteReports = (ids) => api.post('/admin/reports/bulk-delete', { ids });
+
+// Admin — AI rescans & location backfill
+export const rescanReport = (id) => api.post(`/admin/reports/${id}/rescan`, null, { timeout: 300000 });
+export const startRescan = (scope = 'all', ids = null) => api.post('/admin/rescan', { scope, ids });
+export const getRescanStatus = () => api.get('/admin/rescan/status');
+export const geocodeReport = (id) => api.post(`/admin/reports/${id}/geocode`);
+export const startGeocode = (onlyMissing = true) => api.post('/admin/geocode', { only_missing: onlyMissing });
+export const getGeocodeStatus = () => api.get('/admin/geocode/status');
 
 export default api;

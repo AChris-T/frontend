@@ -6,10 +6,12 @@ import StatTile from '@/components/ui/StatTile';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import ReportCard from './ReportCard';
+import LocationModal from '@/components/location/LocationModal';
 
 export default function DashboardClient({ initialReports, userName }) {
   const [reports] = useState(initialReports);
   const [selectedId, setSelectedId] = useState(null);
+  const [locationReport, setLocationReport] = useState(null);
   const router = useRouter();
 
   const count = (status) => reports.filter((r) => r.status === status).length;
@@ -54,11 +56,14 @@ export default function DashboardClient({ initialReports, userName }) {
                 report={r}
                 expanded={selectedId === r.id}
                 onToggle={() => setSelectedId(selectedId === r.id ? null : r.id)}
+                onLocate={setLocationReport}
               />
             ))}
           </div>
         )}
       </Card>
+
+      <LocationModal report={locationReport} open={!!locationReport} onClose={() => setLocationReport(null)} />
     </div>
   );
 }

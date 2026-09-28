@@ -5,6 +5,7 @@ import MediaStep from './MediaStep';
 import ScanStep from './ScanStep';
 import ReviewStep from './ReviewStep';
 import SuccessScreen from './SuccessScreen';
+import SubmitOverlay from './SubmitOverlay';
 
 const STEPS = ['Location', 'Media', 'AI Scan', 'Submit'];
 
@@ -52,6 +53,7 @@ export default function ReportWizardClient({ defaultEmail }) {
           onSubmit={w.handleSubmit} onBack={() => w.setStep(3)} loading={w.loading}
         />
       )}
+      {w.loading && <SubmitOverlay hasMedia={!!w.media} hasEmail={!!w.email} />}
     </div>
   );
 }
