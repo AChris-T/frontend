@@ -33,8 +33,14 @@ if DATABASE_URL and DATABASE_URL.startswith("DATABASE_URL="):
     )
     DATABASE_URL = DATABASE_URL.split("=", 1)[1]
 
-print("DATABASE_URL:", repr(DATABASE_URL))
-print("TYPE:", type(DATABASE_URL))
+# SQLAlchemy 2.x resolves a bare "postgresql://" scheme to the psycopg (v3)
+# driver, but this project installs psycopg2-binary. Select psycopg2
+# explicitly. The legacy "postgres://" scheme is also normalised.
+if DATABASE_URL is not None:
+    for _prefix in ("postgresql://", "postgres://"):
+        if DATABASE_URL.startswith(_prefix):
+            DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL[len(_prefix):]
+            break
 
 engine = create_engine(DATABASE_URL)
 
