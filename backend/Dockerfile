@@ -32,6 +32,12 @@ RUN apt-get update && apt-get install -y \
 
 
 
+# Install CPU-only PyTorch first so ultralytics does not pull the multi-GB CUDA wheels
+
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+
+
 # Copy requirements and install Python dependencies
 
 COPY requirements.txt .
