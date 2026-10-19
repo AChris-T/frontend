@@ -9,6 +9,7 @@ webhook isn't configured or fails, the failure is logged and recorded.
 
 import json
 import os
+import urllib.error
 import urllib.request
 from datetime import datetime
 from typing import Optional
@@ -17,7 +18,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NOTIFY_SECRET = os.getenv("NOTIFY_SECRET")
+NOTIFY_SECRET = (os.getenv("NOTIFY_SECRET") or "").strip().strip("'\"") or None
 ADMIN_NOTIFICATION_EMAIL = os.getenv(
     "ADMIN_NOTIFICATION_EMAIL",
     "taiwoakinfenwa2019@gmail.com",
@@ -26,10 +27,14 @@ NOTIFY_URL = os.getenv("NOTIFY_URL") or (
     f"{os.getenv('FRONTEND_URL', '').strip().rstrip('/')}/api/notify"
     if os.getenv("FRONTEND_URL") else None
 )
+if NOTIFY_URL and "://" not in NOTIFY_URL:
+    NOTIFY_URL = f"https://{NOTIFY_URL}"  # "example.com/api/notify" has no scheme; urllib rejects it
 
 
 def _post_notification(payload: dict) -> bool:
     if not (NOTIFY_SECRET and NOTIFY_URL):
+        print(f"[error] Email not sent ({payload.get('event')}): set NOTIFY_SECRET and "
+              f"FRONTEND_URL (or NOTIFY_URL) — NOTIFY_SECRET set={bool(NOTIFY_SECRET)}, NOTIFY_URL={NOTIFY_URL}")
         return False
     try:
         from storage import email_logo_url
@@ -37,12 +42,17 @@ def _post_notification(payload: dict) -> bool:
         req = urllib.request.Request(
             NOTIFY_URL,
             data=json.dumps(payload, default=str).encode("utf-8"),
-            headers={"Content-Type": "application/json", "x-notify-secret": NOTIFY_SECRET},
+            headers={"Content-Type": "application/json", "x-notify-secret": NOTIFY_SECRET,
+                     "User-Agent": "UIRoadMonitor-Backend/1.0"},
             method="POST",
         )
         with urllib.request.urlopen(req, timeout=20) as res:
             body = json.loads(res.read().decode("utf-8") or "{}")
             return bool(body.get("sent"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", "replace")[:300]
+        print(f"[error] Email webhook {NOTIFY_URL} returned {e.code} for {payload.get('event')}: {detail}")
+        return False
     except Exception as e:
         print(f"[error] Email notification webhook failed ({NOTIFY_URL}): {e}")
         return False

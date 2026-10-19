@@ -9,13 +9,26 @@ import {
 
 export const runtime = 'nodejs';
 
+// Pasted dashboard values often carry quotes or a trailing newline.
+const clean = (v) => String(v || '').trim().replace(/^["']|["']$/g, '');
+
 function authorized(request) {
-  const expected = process.env.NOTIFY_SECRET;
-  const given = request.headers.get('x-notify-secret') || '';
+  const expected = clean(process.env.NOTIFY_SECRET);
+  const given = clean(request.headers.get('x-notify-secret'));
   const expectedBytes = Buffer.from(expected || '');
   const givenBytes = Buffer.from(given);
   if (!expected || givenBytes.length !== expectedBytes.length) return false;
   return timingSafeEqual(givenBytes, expectedBytes);
+}
+
+// Health check: which email settings this deployment can see (never their values).
+export async function GET() {
+  return NextResponse.json({
+    NOTIFY_SECRET: Boolean(clean(process.env.NOTIFY_SECRET)),
+    RESEND_API_KEY: Boolean(clean(process.env.RESEND_API_KEY)),
+    MAIL_FROM: Boolean(clean(process.env.MAIL_FROM)),
+    APP_URL: Boolean(clean(process.env.APP_URL)),
+  });
 }
 
 export async function POST(request) {
@@ -58,8 +71,8 @@ export async function POST(request) {
     return NextResponse.json({ sent: false, detail: `Unknown event "${payload.event}"` }, { status: 400 });
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.MAIL_FROM;
+  const apiKey = clean(process.env.RESEND_API_KEY);
+  const from = clean(process.env.MAIL_FROM);
   if (!apiKey || !from) {
     return NextResponse.json(
       { sent: false, detail: 'RESEND_API_KEY and MAIL_FROM must be configured' },
