@@ -1,10 +1,10 @@
 """
 Email notifications for fault reports.
 
-Emails are rendered and sent by the Next.js frontend with Nodemailer
+Emails are rendered and sent by the Next.js frontend with Resend
+(the University of Ibadan logo in them is served from the R2 bucket)
 (POST {FRONTEND_URL}/api/notify, authenticated with NOTIFY_SECRET). If that
-webhook isn't configured or fails, falls back to the SMTP sender in
-email_service.py so a notification is never silently lost.
+webhook isn't configured or fails, the failure is logged and recorded.
 """
 
 import json
@@ -15,21 +15,25 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-from email_service import send_email, report_received_email, status_update_email
-
 load_dotenv()
 
 NOTIFY_SECRET = os.getenv("NOTIFY_SECRET")
+ADMIN_NOTIFICATION_EMAIL = os.getenv(
+    "ADMIN_NOTIFICATION_EMAIL",
+    "taiwoakinfenwa2019@gmail.com",
+)
 NOTIFY_URL = os.getenv("NOTIFY_URL") or (
     f"{os.getenv('FRONTEND_URL', '').strip().rstrip('/')}/api/notify"
     if os.getenv("FRONTEND_URL") else None
 )
 
 
-def _post_to_nodemailer(payload: dict) -> bool:
+def _post_notification(payload: dict) -> bool:
     if not (NOTIFY_SECRET and NOTIFY_URL):
         return False
     try:
+        from storage import email_logo_url
+        payload = {**payload, "logo_url": email_logo_url()}
         req = urllib.request.Request(
             NOTIFY_URL,
             data=json.dumps(payload, default=str).encode("utf-8"),
@@ -40,7 +44,7 @@ def _post_to_nodemailer(payload: dict) -> bool:
             body = json.loads(res.read().decode("utf-8") or "{}")
             return bool(body.get("sent"))
     except Exception as e:
-        print(f"[warn] Nodemailer webhook failed ({NOTIFY_URL}): {e}")
+        print(f"[error] Email notification webhook failed ({NOTIFY_URL}): {e}")
         return False
 
 
@@ -102,22 +106,11 @@ def notify_report_received(report_id: int, to_email: str):
                 report.address = address
                 db.commit()
 
-        sent = _post_to_nodemailer({
+        sent = _post_notification({
             "event": "report_received",
             "to": to_email,
             "report": _report_payload(report),
         })
-        if not sent:
-            sent = send_email(
-                to_email,
-                f"Report #{report.id} received — UI Road Monitor",
-                report_received_email(
-                    report.id,
-                    (report.fault_type or "Pending AI Analysis").replace("_", " ").title(),
-                    report.severity or "low",
-                    _location_label(report),
-                ),
-            )
         _record(db, report, sent, "Report received confirmation")
     finally:
         db.close()
@@ -134,7 +127,7 @@ def notify_status_changed(report_id: int, to_email: str, old_status: str, new_st
         if not report:
             return
 
-        sent = _post_to_nodemailer({
+        sent = _post_notification({
             "event": "status_changed",
             "to": to_email,
             "old_status": old_status,
@@ -142,13 +135,56 @@ def notify_status_changed(report_id: int, to_email: str, old_status: str, new_st
             "note": note,
             "report": _report_payload(report),
         })
-        if not sent:
-            sent = send_email(
-                to_email,
-                f"Report #{report.id} is now {new_status.replace('_', ' ').title()} — UI Road Monitor",
-                status_update_email(report.id, new_status, note),
-            )
         _record(db, report, sent, f"Status changed from {old_status} to {new_status}")
+    finally:
+        db.close()
+
+
+def notify_user_registered(user_id: int):
+    """Background task: send a welcome email after account registration."""
+    from database import SessionLocal
+    import models
+
+    db = SessionLocal()
+    try:
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        if not user:
+            return
+
+        sent = _post_notification({
+            "event": "user_registered",
+            "to": user.email,
+            "user": {"full_name": user.full_name},
+        })
+        db.add(models.Notification(
+            user_id=user.id,
+            email_sent=sent,
+            sent_at=datetime.now() if sent else None,
+            message="Welcome email",
+        ))
+        db.commit()
+    finally:
+        db.close()
+
+
+def notify_admin_new_report(report_id: int):
+    """Background task: alert the administrator when a report is submitted."""
+    from database import SessionLocal
+    import models
+
+    db = SessionLocal()
+    try:
+        report = db.query(models.FaultReport).filter(models.FaultReport.id == report_id).first()
+        if not report:
+            return
+
+        sent = _post_notification({
+            "event": "new_report_admin",
+            "to": ADMIN_NOTIFICATION_EMAIL,
+            "report": _report_payload(report),
+        })
+        if not sent:
+            print(f"[error] Admin alert for report #{report.id} was not sent")
     finally:
         db.close()
 

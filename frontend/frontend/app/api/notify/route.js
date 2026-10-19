@@ -1,35 +1,21 @@
 import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
-import nodemailer from 'nodemailer';
-import { reportReceivedEmail, statusChangedEmail } from '@/lib/email-templates';
+import {
+  adminNewReportEmail,
+  reportReceivedEmail,
+  statusChangedEmail,
+  welcomeEmail,
+} from '@/lib/email-templates';
 
 export const runtime = 'nodejs';
-
-// Called by the FastAPI backend (never the browser) whenever a report is
-// submitted or its status changes. Authenticated with a shared secret so it
-// can't be abused as an open mail relay.
-
-let transporter;
-function getTransporter() {
-  if (transporter) return transporter;
-  const user = process.env.SMTP_USER || process.env.GMAIL_USER;
-  const pass = process.env.SMTP_PASS || process.env.GMAIL_PASSWORD;
-  if (!user || !pass) return null;
-  const port = Number(process.env.SMTP_PORT || 465);
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port,
-    secure: port === 465,
-    auth: { user, pass },
-  });
-  return transporter;
-}
 
 function authorized(request) {
   const expected = process.env.NOTIFY_SECRET;
   const given = request.headers.get('x-notify-secret') || '';
-  if (!expected || given.length !== expected.length) return false;
-  return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+  const expectedBytes = Buffer.from(expected || '');
+  const givenBytes = Buffer.from(given);
+  if (!expected || givenBytes.length !== expectedBytes.length) return false;
+  return timingSafeEqual(givenBytes, expectedBytes);
 }
 
 export async function POST(request) {
@@ -40,37 +26,73 @@ export async function POST(request) {
   const payload = await request.json().catch(() => null);
   const to = payload?.to;
   const report = payload?.report;
-  if (!to || !report?.id || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+  if (!to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     return NextResponse.json({ sent: false, detail: 'Invalid payload' }, { status: 400 });
   }
 
-  const transport = getTransporter();
-  if (!transport) {
-    return NextResponse.json({ sent: false, detail: 'SMTP credentials are not configured' }, { status: 503 });
-  }
-
   const appUrl = (process.env.APP_URL || request.nextUrl.origin).replace(/\/+$/, '');
+  // UI logo hosted in the R2 bucket (sent by the backend); falls back to /public/email/ui-logo.png.
+  const logoUrl = /^https:\/\//.test(payload.logo_url || '') ? payload.logo_url : process.env.EMAIL_LOGO_URL;
   let email;
   if (payload.event === 'report_received') {
-    email = reportReceivedEmail(report, appUrl);
+    if (!report?.id) {
+      return NextResponse.json({ sent: false, detail: 'Invalid report payload' }, { status: 400 });
+    }
+    email = reportReceivedEmail(report, appUrl, logoUrl);
   } else if (payload.event === 'status_changed') {
-    email = statusChangedEmail(report, { newStatus: payload.new_status, oldStatus: payload.old_status, note: payload.note }, appUrl);
+    if (!report?.id || !payload.new_status) {
+      return NextResponse.json({ sent: false, detail: 'Invalid status update payload' }, { status: 400 });
+    }
+    email = statusChangedEmail(report, { newStatus: payload.new_status, oldStatus: payload.old_status, note: payload.note }, appUrl, logoUrl);
+  } else if (payload.event === 'user_registered') {
+    if (!payload.user?.full_name) {
+      return NextResponse.json({ sent: false, detail: 'Invalid user payload' }, { status: 400 });
+    }
+    email = welcomeEmail(payload.user, appUrl, logoUrl);
+  } else if (payload.event === 'new_report_admin') {
+    if (!report?.id) {
+      return NextResponse.json({ sent: false, detail: 'Invalid report payload' }, { status: 400 });
+    }
+    email = adminNewReportEmail(report, appUrl, logoUrl);
   } else {
     return NextResponse.json({ sent: false, detail: `Unknown event "${payload.event}"` }, { status: 400 });
   }
 
-  const fromAddress = process.env.SMTP_USER || process.env.GMAIL_USER;
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.MAIL_FROM;
+  if (!apiKey || !from) {
+    return NextResponse.json(
+      { sent: false, detail: 'RESEND_API_KEY and MAIL_FROM must be configured' },
+      { status: 503 },
+    );
+  }
+
   try {
-    const info = await transport.sendMail({
-      from: process.env.MAIL_FROM || `UI Road Monitor <${fromAddress}>`,
-      to,
-      subject: email.subject,
-      html: email.html,
-      text: email.text,
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from,
+        to,
+        subject: email.subject,
+        html: email.html,
+        text: email.text,
+      }),
     });
-    return NextResponse.json({ sent: true, messageId: info.messageId });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      console.error('Resend email send failed:', result);
+      return NextResponse.json(
+        { sent: false, detail: result.message || 'Resend rejected the email' },
+        { status: 502 },
+      );
+    }
+    return NextResponse.json({ sent: true, messageId: result.id });
   } catch (error) {
-    console.error('Nodemailer send failed:', error);
-    return NextResponse.json({ sent: false, detail: error.message }, { status: 502 });
+    console.error('Resend request failed:', error);
+    return NextResponse.json({ sent: false, detail: 'Could not reach Resend' }, { status: 502 });
   }
 }

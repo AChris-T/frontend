@@ -1,8 +1,9 @@
 import os
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from database import get_db
 import models, schemas, auth
+from notifier import notify_user_registered
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -23,7 +24,12 @@ def set_session_cookie(response: Response, token: str):
 
 
 @router.post("/register", response_model=schemas.Token)
-def register(user_data: schemas.UserRegister, response: Response, db: Session = Depends(get_db)):
+def register(
+    user_data: schemas.UserRegister,
+    response: Response,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+):
     existing = db.query(models.User).filter(
         models.User.email == user_data.email
     ).first()
@@ -43,6 +49,7 @@ def register(user_data: schemas.UserRegister, response: Response, db: Session = 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    background_tasks.add_task(notify_user_registered, new_user.id)
 
     token = auth.create_access_token({"sub": new_user.email, "role": new_user.role, "full_name": new_user.full_name})
     set_session_cookie(response, token)

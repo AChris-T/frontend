@@ -10,7 +10,7 @@ import os, shutil, uuid
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ai_service import analyze_image, analyze_video
-from notifier import notify_report_received
+from notifier import notify_admin_new_report, notify_report_received
 from geocoding import fill_report_location
 import storage
 
@@ -201,6 +201,7 @@ async def create_report(
 
     db.commit()
     db.refresh(report)
+    background_tasks.add_task(notify_admin_new_report, report.id)
 
     # If no AI scan was done yet, run in background — otherwise the local
     # temp copies are dead weight once R2 holds the permanent copy.

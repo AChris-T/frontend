@@ -1,0 +1,17 @@
+# YOLOv8 dataset config for UI Road Monitor road-damage detection.
+# Expected layout (YOLO format — one .txt label file per image):
+#   datasets/road_damage/images/{train,val,test}/*.jpg
+#   datasets/road_damage/labels/{train,val,test}/*.txt   (class cx cy w h, normalised 0-1)
+# Images: RDD2022 (Nigeria-relevant classes remapped below) + UI campus road photos.
+path: datasets/road_damage
+train: images/train
+val: images/val
+test: images/test
+
+# Class ids must match FAULT_TYPES in gemini_service.py / ai_service.py
+names:
+  0: pothole            # RDD2022 D40
+  1: alligator_crack    # RDD2022 D20
+  2: longitudinal_crack # RDD2022 D00
+  3: transverse_crack   # RDD2022 D10
+  4: rutting            # UI campus annotations

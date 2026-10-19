@@ -20,3 +20,8 @@ backend/*.pt
 # OS junk
 .DS_Store
 Thumbs.db
+
+# YOLOv8 training outputs
+backend/training/runs/
+backend/training/datasets/
+backend/datasets/

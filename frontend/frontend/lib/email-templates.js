@@ -1,4 +1,4 @@
-// Email HTML for Nodemailer notifications. Table-based layout + inline styles
+// Email HTML for Resend notifications. Table-based layout + inline styles
 // so it renders consistently in Gmail, Outlook and mobile mail apps.
 
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
@@ -26,7 +26,8 @@ function locationOf(r) {
   return `${Number(r.latitude).toFixed(5)}, ${Number(r.longitude).toFixed(5)}`;
 }
 
-function shell(preheader, body, appUrl) {
+function shell(preheader, body, appUrl, logoUrl) {
+  const logo = logoUrl || `${appUrl}/email/ui-logo.png`;
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
 <body style="margin:0;padding:0;background:#eef2f7;font-family:${FONT};">
 <span style="display:none;font-size:1px;color:#eef2f7;max-height:0;overflow:hidden;">${esc(preheader)}</span>
@@ -35,7 +36,9 @@ function shell(preheader, body, appUrl) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 10px 40px rgba(11,18,32,0.10);">
 <tr><td style="background:#0b1220;background-image:linear-gradient(135deg,#0b1220 0%,#1c5cab 100%);padding:28px 32px;">
   <table role="presentation" cellpadding="0" cellspacing="0"><tr>
-    <td style="width:40px;height:40px;background:#2a78d6;border-radius:12px;text-align:center;vertical-align:middle;color:#fff;font-size:20px;font-weight:700;">&#9678;</td>
+    <td style="width:52px;height:56px;background:#ffffff;border-radius:12px;text-align:center;vertical-align:middle;">
+      <img src="${esc(logo)}" alt="University of Ibadan" width="40" height="45" style="display:block;width:40px;height:45px;margin:5px 6px;border:0;" />
+    </td>
     <td style="padding-left:12px;">
       <div style="color:#ffffff;font-size:17px;font-weight:700;">UI Road Monitor</div>
       <div style="color:rgba(255,255,255,0.7);font-size:12px;margin-top:2px;">Road infrastructure monitoring &middot; University of Ibadan</div>
@@ -44,8 +47,8 @@ function shell(preheader, body, appUrl) {
 </td></tr>
 <tr><td style="padding:32px;">${body}</td></tr>
 <tr><td style="padding:20px 32px;background:#f7f8fa;border-top:1px solid #e6e8ec;">
-  <p style="margin:0;color:#8a8f98;font-size:12px;line-height:1.6;">You're receiving this because you reported a road fault on
-  <a href="${esc(appUrl)}" style="color:#2a78d6;text-decoration:none;">UI Road Monitor</a>. This is an automated message — please don't reply.<br/>
+  <p style="margin:0;color:#8a8f98;font-size:12px;line-height:1.6;">This is an automated message from
+  <a href="${esc(appUrl)}" style="color:#2a78d6;text-decoration:none;">UI Road Monitor</a>. Please don't reply directly to this email.<br/>
   &copy; ${new Date().getFullYear()} UI Road Monitor &mdash; Faculty of Technology, University of Ibadan.</p>
 </td></tr>
 </table></td></tr></table></body></html>`;
@@ -102,7 +105,7 @@ ${r.address ? row('Address', `<span style="font-weight:500;color:#52514e;">${esc
 </table>`;
 }
 
-export function reportReceivedEmail(report, appUrl) {
+export function reportReceivedEmail(report, appUrl, logoUrl) {
   const body = `
 <p style="margin:0 0 6px;color:#2a78d6;font-size:12px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;">Report received</p>
 <h1 style="margin:0 0 10px;color:#0b0b0b;font-size:24px;font-weight:800;line-height:1.25;">Thanks — we've logged your report #${esc(report.id)}</h1>
@@ -113,12 +116,42 @@ ${details(report)}
 ${button('Track your report', `${appUrl}/dashboard`)}`;
   return {
     subject: `Report #${report.id} received — ${title(report.fault_type === 'analyzing' ? 'road fault' : report.fault_type)} at ${locationOf(report)}`,
-    html: shell(`We've logged your road fault report #${report.id}.`, body, appUrl),
+    html: shell(`We've logged your road fault report #${report.id}.`, body, appUrl, logoUrl),
     text: `Thanks — we've logged your report #${report.id} (${title(report.fault_type)}, ${report.severity}) at ${locationOf(report)}. We'll email you when the status changes. Track it at ${appUrl}/dashboard`,
   };
 }
 
-export function statusChangedEmail(report, { newStatus, oldStatus, note }, appUrl) {
+export function welcomeEmail(user, appUrl, logoUrl) {
+  const name = esc(user.full_name);
+  const body = `
+<p style="margin:0 0 6px;color:#2a78d6;font-size:12px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;">Welcome</p>
+<h1 style="margin:0 0 12px;color:#0b0b0b;font-size:24px;font-weight:800;line-height:1.25;">Welcome to UI Road Monitor, ${name}</h1>
+<p style="margin:0 0 24px;color:#52514e;font-size:15px;line-height:1.6;">Thanks for joining our campus road community. You can report road faults, follow progress, and help the University of Ibadan keep its roads safer.</p>
+${button('Open your dashboard', `${appUrl}/dashboard`)}`;
+  return {
+    subject: 'Welcome to UI Road Monitor',
+    html: shell('Welcome to UI Road Monitor. Thank you for joining us.', body, appUrl, logoUrl),
+    text: `Welcome to UI Road Monitor, ${user.full_name}. You can report road faults and track their progress at ${appUrl}/dashboard`,
+  };
+}
+
+export function adminNewReportEmail(report, appUrl, logoUrl) {
+  const body = `
+<p style="margin:0 0 6px;color:#2a78d6;font-size:12px;font-weight:700;letter-spacing:0.6px;text-transform:uppercase;">New report</p>
+<h1 style="margin:0 0 12px;color:#0b0b0b;font-size:24px;font-weight:800;line-height:1.25;">A road fault needs review</h1>
+<p style="margin:0 0 24px;color:#52514e;font-size:15px;line-height:1.6;">A new report has been submitted to UI Road Monitor. Review the details and update its status in the admin dashboard.</p>
+${photo(report)}
+${tracker('reported')}
+${details(report)}
+${button('Review report', `${appUrl}/admin`)}`;
+  return {
+    subject: `New road fault report #${report.id} — ${locationOf(report)}`,
+    html: shell(`New road fault report #${report.id} is waiting for review.`, body, appUrl, logoUrl),
+    text: `New report #${report.id}: ${title(report.fault_type)} (${report.severity}) at ${locationOf(report)}. Review it at ${appUrl}/admin`,
+  };
+}
+
+export function statusChangedEmail(report, { newStatus, oldStatus, note }, appUrl, logoUrl) {
   const st = STATUS[newStatus] || { label: title(newStatus), color: '#898781' };
   const noteHtml = note ? `
 <div style="margin:0 0 24px;padding:16px 18px;background:#f7f8fa;border-radius:14px;border-left:4px solid ${st.color};">
@@ -137,7 +170,7 @@ ${details(report)}
 ${button('View your report', `${appUrl}/dashboard`)}`;
   return {
     subject: `Report #${report.id} is now ${st.label} — UI Road Monitor`,
-    html: shell(`Report #${report.id} is now ${st.label}.`, body, appUrl),
+    html: shell(`Report #${report.id} is now ${st.label}.`, body, appUrl, logoUrl),
     text: `Report #${report.id} (${title(report.fault_type)} at ${locationOf(report)}) is now ${st.label}.${note ? ` Note: ${note}` : ''} View it at ${appUrl}/dashboard`,
   };
 }

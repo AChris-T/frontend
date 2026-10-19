@@ -107,3 +107,31 @@ def cleanup_local(*paths: str):
                 os.remove(path)
             except OSError:
                 pass
+
+
+EMAIL_LOGO_KEY = "branding/ui-logo.png"
+EMAIL_LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "ui-logo.png")
+_email_logo_url = None
+
+
+def email_logo_url():
+    """Public R2 URL of the University of Ibadan logo used in emails.
+
+    Uploads assets/ui-logo.png to the bucket the first time it's needed.
+    Returns None when R2 isn't configured (the frontend then falls back to
+    its own /email/ui-logo.png).
+    """
+    global _email_logo_url
+    if _email_logo_url or not R2_ENABLED:
+        return _email_logo_url
+    try:
+        try:
+            _client.head_object(Bucket=R2_BUCKET_NAME, Key=EMAIL_LOGO_KEY)
+        except Exception:
+            with open(EMAIL_LOGO_PATH, "rb") as f:
+                _client.put_object(Bucket=R2_BUCKET_NAME, Key=EMAIL_LOGO_KEY, Body=f.read(),
+                                   ContentType="image/png", CacheControl="public, max-age=31536000")
+        _email_logo_url = f"{R2_PUBLIC_URL.rstrip('/')}/{EMAIL_LOGO_KEY}"
+    except Exception as e:
+        print(f"[warn] Could not upload email logo to R2: {e}")
+    return _email_logo_url

@@ -379,6 +379,69 @@ def deduplicate_detections(detections: list) -> list:
 
 
 # ─────────────────────────────────────────────────────────────
+# YOLOv8 DETECTION (custom road-damage model)
+# ─────────────────────────────────────────────────────────────
+def yolo_severity(confidence: float, area_ratio: float) -> str:
+    """Severity from detector confidence and how much of the frame the defect covers."""
+    if area_ratio >= 0.15 or (confidence >= 0.75 and area_ratio >= 0.05):
+        return 'high'
+    if area_ratio >= 0.05 or confidence >= 0.50:
+        return 'medium'
+    return 'low'
+
+
+def detect_with_yolo(image_path: str, conf_threshold: float = 0.25):
+    """
+    Runs the trained YOLOv8 model (road_damage_model.pt, see training/) on an
+    image. Returns the analyze_image() result shape with a bounding box per
+    detection, or None when the custom model isn't available.
+    """
+    if model is None or not os.path.exists(MODEL_PATH):
+        return None  # the stock yolov8n.pt knows COCO objects, not road damage
+
+    results = model.predict(image_path, conf=conf_threshold, verbose=False)
+    if not results:
+        return None
+    result = results[0]
+    img_h, img_w = result.orig_shape
+
+    detections = []
+    for box in result.boxes:
+        x1, y1, x2, y2 = (round(v) for v in box.xyxy[0].tolist())
+        confidence = round(float(box.conf[0]), 3)
+        area_ratio = ((x2 - x1) * (y2 - y1)) / float(img_w * img_h)
+        detections.append({
+            'fault_type': result.names[int(box.cls[0])],
+            'confidence': confidence,
+            'severity': yolo_severity(confidence, area_ratio),
+            'bbox': {'x1': x1, 'y1': y1, 'x2': x2, 'y2': y2},
+            'method': 'yolov8',
+        })
+    detections.sort(key=lambda d: d['confidence'], reverse=True)
+
+    if not detections:
+        return {
+            'engine': 'yolov8', 'fault_detected': False, 'fault_type': 'none',
+            'severity': 'none', 'confidence': 0, 'bbox': None,
+            'all_detections': [], 'total_faults': 0,
+            'message': 'No road fault detected — please select fault type manually',
+        }
+
+    primary = detections[0]
+    return {
+        'engine': 'yolov8',
+        'fault_detected': True,
+        'fault_type': primary['fault_type'],
+        'severity': primary['severity'],
+        'confidence': primary['confidence'],
+        'bbox': primary['bbox'],
+        'all_detections': detections,
+        'total_faults': len(detections),
+        'message': f"{len(detections)} fault(s) detected: " + ", ".join(d['fault_type'] for d in detections),
+    }
+
+
+# ─────────────────────────────────────────────────────────────
 # PUBLIC API — analyze_image
 # ─────────────────────────────────────────────────────────────
 def analyze_image(image_path: str) -> dict:
@@ -386,7 +449,16 @@ def analyze_image(image_path: str) -> dict:
     Analyzes a photo for road faults. Tries Gemini Vision first (more
     accurate, understands real-world context); falls back to the local
     OpenCV heuristics below if Gemini is unavailable or errors out.
+    When a trained road_damage_model.pt is present, YOLOv8 runs first and
+    also returns bounding boxes.
     """
+    try:
+        yolo_result = detect_with_yolo(image_path)
+        if yolo_result is not None and yolo_result['fault_detected']:
+            return yolo_result
+    except Exception as e:
+        print(f"⚠️ YOLOv8 detection failed, trying Gemini: {e}")
+
     try:
         from gemini_service import analyze_image_gemini
         gemini_result = analyze_image_gemini(image_path)
