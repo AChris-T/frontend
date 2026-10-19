@@ -7,18 +7,19 @@ from notifier import notify_user_registered
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-COOKIE_MAX_AGE = auth.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 COOKIE_SECURE = os.getenv("ENV", "development") != "development"
 
 
-def set_session_cookie(response: Response, token: str):
+def set_session_cookie(response: Response, token: str, role: str):
+    max_age = (auth.ACCESS_TOKEN_EXPIRE_MINUTES * 60 if auth.token_expires(role)
+               else auth.SESSION_COOKIE_MAX_AGE)
     response.set_cookie(
         key="token",
         value=token,
         httponly=True,
         samesite="lax",
         secure=COOKIE_SECURE,
-        max_age=COOKIE_MAX_AGE,
+        max_age=max_age,
         path="/",
     )
 
@@ -52,7 +53,7 @@ def register(
     background_tasks.add_task(notify_user_registered, new_user.id)
 
     token = auth.create_access_token({"sub": new_user.email, "role": new_user.role, "full_name": new_user.full_name})
-    set_session_cookie(response, token)
+    set_session_cookie(response, token, new_user.role)
 
     return {
         "access_token": token,
@@ -74,7 +75,7 @@ def login(user_data: schemas.UserLogin, response: Response, db: Session = Depend
         )
 
     token = auth.create_access_token({"sub": user.email, "role": user.role, "full_name": user.full_name})
-    set_session_cookie(response, token)
+    set_session_cookie(response, token, user.role)
 
     return {
         "access_token": token,

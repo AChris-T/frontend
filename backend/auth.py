@@ -27,10 +27,19 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         hashed_password.encode("utf-8"),
     )
 
+# Regular users stay signed in until they log out; admin sessions still expire.
+SESSION_COOKIE_MAX_AGE = 400 * 24 * 60 * 60  # longest lifetime browsers allow for a cookie
+
+
+def token_expires(role: Optional[str]) -> bool:
+    return role == "admin"
+
+
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    if token_expires(to_encode.get("role")):
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
